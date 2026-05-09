@@ -99,71 +99,75 @@ abbrev mkLayerOf {p k : Nat} (deps : DepsRestr (A := A) p.succ k)
   hforall eps : A.arity,
     deps.paintings.2 (deps.restrFrames.2 0 (leR_O (n := k)) eps d)
 
-structure DepsRestrExtension (p k : Nat) where
-  deps : DepsRestr (A := A) p k
+structure DepsRestrExtension (p k : Nat) (deps : DepsRestr (A := A) p k) where
   painting : mkFrame deps -> HSet
 
 def DepsRestrExtension.TopRestrDep {p : Nat}
     (deps : DepsRestr (A := A) p 0)
     (E : mkFrame deps -> HSet) :
-    DepsRestrExtension (A := A) p 0 :=
-  { deps := deps
-    painting := E }
+    DepsRestrExtension (A := A) p 0 deps :=
+  { painting := E }
 
 def DepsRestrExtension.AddRestrDep {p k : Nat}
-    (extraDeps : DepsRestrExtension (A := A) p.succ k) :
-    DepsRestrExtension (A := A) p k.succ :=
-  { deps := proj1DepsRestr extraDeps.deps
-    painting := fun d =>
-      { l : mkLayerOf extraDeps.deps d &
+    {deps : DepsRestr (A := A) p.succ k}
+    (extraDeps : DepsRestrExtension (A := A) p.succ k deps) :
+    DepsRestrExtension (A := A) p k.succ (proj1DepsRestr deps) :=
+  { painting := fun d =>
+      { l : mkLayerOf deps d &
         extraDeps.painting
           (existT
-            (fun d : mkFrame (proj1DepsRestr extraDeps.deps) =>
-              mkLayerOf extraDeps.deps d)
+            (fun d : mkFrame (proj1DepsRestr deps) =>
+              mkLayerOf deps d)
             d l) } }
 
-abbrev mkPainting {p k : Nat}
-    (extraDeps : DepsRestrExtension (A := A) p k) :
-    mkFrame extraDeps.deps -> HSet :=
+abbrev mkPainting {p k : Nat} {deps : DepsRestr (A := A) p k}
+    (extraDeps : DepsRestrExtension (A := A) p k deps) :
+    mkFrame deps -> HSet :=
   extraDeps.painting
 
 def mkPaintingsPrefix {A : AritySig} :
-    {p k : Nat} -> (extraDeps : DepsRestrExtension (A := A) p k) ->
-      mkPaintingTypes p k.succ (mkFrames extraDeps.deps).1
-  | 0, _, _ => PUnit.unit
-  | _ + 1, _, extraDeps =>
+    {p k : Nat} -> (deps : DepsRestr (A := A) p k) ->
+      DepsRestrExtension (A := A) p k deps ->
+      mkPaintingTypes p k.succ (mkFrames deps).1
+  | 0, _, _, _ => PUnit.unit
+  | _ + 1, _, deps, extraDeps =>
       let extraDeps' := DepsRestrExtension.AddRestrDep extraDeps
-      (mkPaintingsPrefix extraDeps' ; mkPainting extraDeps')
+      (mkPaintingsPrefix (proj1DepsRestr deps) extraDeps' ;
+        mkPainting extraDeps')
 
-def mkPaintings {p k : Nat}
-    (extraDeps : DepsRestrExtension (A := A) p k) :
-    mkPaintingTypes p.succ k (mkFrames extraDeps.deps) :=
-  (mkPaintingsPrefix extraDeps ; mkPainting extraDeps)
+def mkPaintings {p k : Nat} (deps : DepsRestr (A := A) p k)
+    (extraDeps : DepsRestrExtension (A := A) p k deps) :
+    mkPaintingTypes p.succ k (mkFrames deps) :=
+  (mkPaintingsPrefix deps extraDeps ; mkPainting extraDeps)
 
 def mkRestrPaintingType {p k : Nat}
-    (extraDeps : DepsRestrExtension (A := A) p.succ k) : Type :=
+    {deps : DepsRestr (A := A) p.succ k}
+    (extraDeps : DepsRestrExtension (A := A) p.succ k deps) : Type :=
   forall (q : Nat) (Hq : leR q k) (eps : A.arity),
-    (d : mkFrame (proj1DepsRestr extraDeps.deps)) ->
-    (mkPaintings (DepsRestrExtension.AddRestrDep extraDeps)).2 d ->
-    extraDeps.deps.paintings.2 (extraDeps.deps.restrFrames.2 q Hq eps d)
+    (d : mkFrame (proj1DepsRestr deps)) ->
+    (mkPaintings (proj1DepsRestr deps)
+      (DepsRestrExtension.AddRestrDep extraDeps)).2 d ->
+    deps.paintings.2 (deps.restrFrames.2 q Hq eps d)
 
 def mkRestrPaintingTypes {A : AritySig} :
-    {p k : Nat} -> DepsRestrExtension (A := A) p k -> Type 1
-  | 0, _, _ => PUnit.{2}
-  | _ + 1, _, extraDeps =>
-      { _ : mkRestrPaintingTypes
+    {p k : Nat} -> (deps : DepsRestr (A := A) p k) ->
+      DepsRestrExtension (A := A) p k deps -> Type 1
+  | 0, _, _, _ => PUnit.{2}
+  | _ + 1, _, deps, extraDeps =>
+      { _ : mkRestrPaintingTypes (proj1DepsRestr deps)
           (DepsRestrExtension.AddRestrDep extraDeps) &T
         mkRestrPaintingType extraDeps }
 
-structure CohFrameTypeBlock {p k : Nat}
-    (extraDeps : DepsRestrExtension (A := A) p k) where
+structure CohFrameTypeBlock {p k : Nat} {deps : DepsRestr (A := A) p k}
+    (extraDeps : DepsRestrExtension (A := A) p k deps) where
   CohFrameTypesDef : Type 1
   RestrFramesDef :
     CohFrameTypesDef -> mkRestrFrameTypes (A := A)
-      (mkPaintings extraDeps)
+      (mkPaintings deps extraDeps)
 
 def mkCohFrameTypesStep {p k : Nat}
-    (extraDeps : DepsRestrExtension (A := A) p.succ k)
+    {deps : DepsRestr (A := A) p.succ k}
+    (extraDeps : DepsRestrExtension (A := A) p.succ k deps)
     (prev : CohFrameTypeBlock
       (DepsRestrExtension.AddRestrDep extraDeps)) :
     Type 1 :=
@@ -172,14 +176,15 @@ def mkCohFrameTypesStep {p k : Nat}
       (eps omega : A.arity)
       (d : mkFrame (proj1DepsRestr
         (toDepsRestr (prev.RestrFramesDef Q)))),
-      extraDeps.deps.restrFrames.2 q Hq eps
+      deps.restrFrames.2 q Hq eps
         ((prev.RestrFramesDef Q).2 r (leR_trans Hr (leR_up Hq)) omega d) =
-      extraDeps.deps.restrFrames.2 r (leR_trans Hr Hq) omega
+      deps.restrFrames.2 r (leR_trans Hr Hq) omega
         ((prev.RestrFramesDef Q).2 q.succ (leR_raise_both Hq) eps d) }
 
 def mkRestrLayer {p k : Nat}
-    {extraDeps : DepsRestrExtension (A := A) p.succ k}
-    (restrPaintings : mkRestrPaintingTypes extraDeps)
+    {deps : DepsRestr (A := A) p.succ k}
+    {extraDeps : DepsRestrExtension (A := A) p.succ k deps}
+    (restrPaintings : mkRestrPaintingTypes deps extraDeps)
     {prev : CohFrameTypeBlock
       (DepsRestrExtension.AddRestrDep extraDeps)}
     (cohFrames : mkCohFrameTypesStep extraDeps prev)
@@ -187,25 +192,28 @@ def mkRestrLayer {p k : Nat}
     (d : mkFrame (proj1DepsRestr
       (toDepsRestr (prev.RestrFramesDef cohFrames.1)))) :
     mkLayer
-      (mkPaintings (DepsRestrExtension.AddRestrDep extraDeps))
+      (mkPaintings (proj1DepsRestr deps)
+        (DepsRestrExtension.AddRestrDep extraDeps))
       (prev.RestrFramesDef cohFrames.1) d ->
-    mkLayer extraDeps.deps.paintings extraDeps.deps.restrFrames
+    mkLayer deps.paintings deps.restrFrames
       ((prev.RestrFramesDef cohFrames.1).2 q.succ (leR_raise_both Hq) eps d) :=
   fun l omega =>
-    transport (fun x => (extraDeps.deps.paintings.2 x).Dom)
+    transport (fun x => (deps.paintings.2 x).Dom)
       (cohFrames.2 q Hq 0 leR_O eps omega d)
       (restrPaintings.2 q Hq eps _ (l omega))
 
 def mkCohFrameTypesAndRestrFrames {A : AritySig} :
-    {p k : Nat} -> (extraDeps : DepsRestrExtension (A := A) p k) ->
-      mkRestrPaintingTypes extraDeps ->
+    {p k : Nat} -> (deps : DepsRestr (A := A) p k) ->
+      (extraDeps : DepsRestrExtension (A := A) p k deps) ->
+      mkRestrPaintingTypes deps extraDeps ->
       CohFrameTypeBlock extraDeps
-  | 0, _, _, _ =>
+  | 0, _, _, _, _ =>
       { CohFrameTypesDef := PUnit.{2}
         RestrFramesDef := fun _ => (PUnit.unit ; fun _ _ _ _ => PUnit.unit) }
-  | _ + 1, _, extraDeps, restrPaintings =>
+  | _ + 1, _, deps, extraDeps, restrPaintings =>
+      let extraDeps' := DepsRestrExtension.AddRestrDep extraDeps
       let prev := mkCohFrameTypesAndRestrFrames
-        (DepsRestrExtension.AddRestrDep extraDeps) restrPaintings.1
+        (proj1DepsRestr deps) extraDeps' restrPaintings.1
       let restrFrames := prev.RestrFramesDef
       { CohFrameTypesDef := mkCohFrameTypesStep extraDeps prev
         RestrFramesDef := fun Q =>
@@ -214,41 +222,42 @@ def mkCohFrameTypesAndRestrFrames {A : AritySig} :
               ((restrFrames Q.1).2 q.succ (leR_raise_both Hq) eps d.1 ;
                 mkRestrLayer restrPaintings Q q Hq eps d.1 d.2)) }
 
-abbrev mkCohFrameTypes {p k : Nat}
-    {extraDeps : DepsRestrExtension (A := A) p k}
-    (restrPaintings : mkRestrPaintingTypes extraDeps) : Type 1 :=
-  (mkCohFrameTypesAndRestrFrames extraDeps restrPaintings).CohFrameTypesDef
+abbrev mkCohFrameTypes {p k : Nat} {deps : DepsRestr (A := A) p k}
+    {extraDeps : DepsRestrExtension (A := A) p k deps}
+    (restrPaintings : mkRestrPaintingTypes deps extraDeps) : Type 1 :=
+  (mkCohFrameTypesAndRestrFrames deps extraDeps restrPaintings).CohFrameTypesDef
 
 structure DepsCohs (p k : Nat) where
-  extraDeps : DepsRestrExtension (A := A) p k
-  restrPaintings : mkRestrPaintingTypes extraDeps
-  cohs : mkCohFrameTypes (extraDeps := extraDeps) restrPaintings
+  deps : DepsRestr (A := A) p k
+  extraDeps : DepsRestrExtension (A := A) p k deps
+  restrPaintings : mkRestrPaintingTypes deps extraDeps
+  cohs : mkCohFrameTypes (deps := deps) (extraDeps := extraDeps) restrPaintings
 
-abbrev DepsCohs.deps {p k : Nat}
-    (depsCohs : DepsCohs (A := A) p k) : DepsRestr (A := A) p k :=
-  depsCohs.extraDeps.deps
-
-def toDepsCohs {p k : Nat}
-    {extraDeps : DepsRestrExtension (A := A) p k}
-    {restrPaintings : mkRestrPaintingTypes extraDeps}
-    (cohs : mkCohFrameTypes (extraDeps := extraDeps) restrPaintings) :
+def toDepsCohs {p k : Nat} {deps : DepsRestr (A := A) p k}
+    {extraDeps : DepsRestrExtension (A := A) p k deps}
+    {restrPaintings : mkRestrPaintingTypes deps extraDeps}
+    (cohs : mkCohFrameTypes (deps := deps)
+      (extraDeps := extraDeps) restrPaintings) :
     DepsCohs (A := A) p k :=
-  { extraDeps := extraDeps
+  { deps := deps
+    extraDeps := extraDeps
     restrPaintings := restrPaintings
     cohs := cohs }
 
 def proj1DepsCohs {p k : Nat}
     (depsCohs : DepsCohs (A := A) p.succ k) :
     DepsCohs (A := A) p k.succ :=
-  { extraDeps := DepsRestrExtension.AddRestrDep depsCohs.extraDeps
+  { deps := proj1DepsRestr depsCohs.deps
+    extraDeps := DepsRestrExtension.AddRestrDep depsCohs.extraDeps
     restrPaintings := depsCohs.restrPaintings.1
     cohs := depsCohs.cohs.1 }
 
 abbrev mkRestrFrames {p k : Nat}
     (depsCohs : DepsCohs (A := A) p k) :
-    mkRestrFrameTypes (A := A) (mkPaintings depsCohs.extraDeps) :=
+    mkRestrFrameTypes (A := A)
+      (mkPaintings depsCohs.deps depsCohs.extraDeps) :=
   (mkCohFrameTypesAndRestrFrames
-    depsCohs.extraDeps depsCohs.restrPaintings).RestrFramesDef
+    depsCohs.deps depsCohs.extraDeps depsCohs.restrPaintings).RestrFramesDef
     depsCohs.cohs
 
 def mkDepsRestr {p k : Nat}
@@ -260,8 +269,95 @@ abbrev mkRestrFrame {p k : Nat}
     (depsCohs : DepsCohs (A := A) p k) :
     forall q : Nat, leR q k -> A.arity ->
       mkFrame (proj1DepsRestr (mkDepsRestr depsCohs)) ->
-      mkFrame (DepsCohs.deps depsCohs) :=
+      mkFrame depsCohs.deps :=
   (mkRestrFrames depsCohs).2
+
+structure DepsCohsExtension (p k : Nat)
+    (depsCohs : DepsCohs (A := A) p k) where
+  extraDeps : DepsRestrExtension (A := A) p.succ k (mkDepsRestr depsCohs)
+  restrPainting : mkRestrPaintingType extraDeps
+
+def DepsCohsExtension.TopCohDep {p : Nat}
+    (depsCohs : DepsCohs (A := A) p 0)
+    (E : mkFrame (mkDepsRestr depsCohs) -> HSet) :
+    DepsCohsExtension (A := A) p 0 depsCohs :=
+  let extraDeps := DepsRestrExtension.TopRestrDep (mkDepsRestr depsCohs) E
+  { extraDeps := extraDeps
+    restrPainting :=
+      fun
+      | 0, _, eps, _, c => c.1 eps
+      | q + 1, Hq, _, _, _ => nomatch leR_O_contra (n := q) Hq }
+
+def DepsCohsExtension.AddCohDep {p k : Nat}
+    {depsCohs : DepsCohs (A := A) p.succ k}
+    (extraDepsCohs : DepsCohsExtension (A := A) p.succ k depsCohs) :
+    DepsCohsExtension (A := A) p k.succ (proj1DepsCohs depsCohs) :=
+  { extraDeps := DepsRestrExtension.AddRestrDep extraDepsCohs.extraDeps
+    restrPainting :=
+      fun
+      | 0, _, eps, _, c => c.1 eps
+      | q + 1, Hq, eps, d, c =>
+          (mkRestrLayer depsCohs.restrPaintings depsCohs.cohs
+              q (leR_lower_both Hq) eps d c.1 ;
+            extraDepsCohs.restrPainting q (leR_lower_both Hq) eps
+              (d ; c.1) c.2) }
+
+abbrev mkExtraDeps {p k : Nat} {depsCohs : DepsCohs (A := A) p k}
+    (extraDepsCohs : DepsCohsExtension (A := A) p k depsCohs) :
+    DepsRestrExtension (A := A) p.succ k (mkDepsRestr depsCohs) :=
+  extraDepsCohs.extraDeps
+
+abbrev mkRestrPainting {p k : Nat} {depsCohs : DepsCohs (A := A) p k}
+    (extraDepsCohs : DepsCohsExtension (A := A) p k depsCohs) :
+    mkRestrPaintingType (mkExtraDeps extraDepsCohs) :=
+  extraDepsCohs.restrPainting
+
+def mkRestrPaintingsPrefix {A : AritySig} :
+    {p k : Nat} -> {depsCohs : DepsCohs (A := A) p k} ->
+      (extraDepsCohs : DepsCohsExtension (A := A) p k depsCohs) ->
+      mkRestrPaintingTypes (proj1DepsRestr (mkDepsRestr depsCohs))
+        (DepsRestrExtension.AddRestrDep (mkExtraDeps extraDepsCohs))
+  | 0, _, _, _ => PUnit.unit
+  | _ + 1, _, _, extraDepsCohs =>
+      let extraDepsCohs' := DepsCohsExtension.AddCohDep extraDepsCohs
+      (mkRestrPaintingsPrefix extraDepsCohs' ;
+        mkRestrPainting extraDepsCohs')
+
+def mkRestrPaintings {p k : Nat}
+    {depsCohs : DepsCohs (A := A) p k}
+    (extraDepsCohs : DepsCohsExtension (A := A) p k depsCohs) :
+    mkRestrPaintingTypes (mkDepsRestr depsCohs) (mkExtraDeps extraDepsCohs) :=
+  (mkRestrPaintingsPrefix extraDepsCohs ;
+    mkRestrPainting extraDepsCohs)
+
+def mkCohPaintingType {p k : Nat}
+    {depsCohs : DepsCohs (A := A) p.succ k}
+    (extraDepsCohs :
+      DepsCohsExtension (A := A) p.succ k depsCohs) : Prop :=
+  let addedDepsCohs := DepsCohsExtension.AddCohDep extraDepsCohs
+  forall (q : Nat) (Hq : leR q k) (r : Nat) (Hr : leR r q)
+    (eps omega : A.arity)
+    (d : mkFrame (proj1DepsRestr (mkDepsRestr (proj1DepsCohs depsCohs))))
+    (c : (mkPaintings
+      (proj1DepsRestr (mkDepsRestr (proj1DepsCohs depsCohs)))
+      (DepsRestrExtension.AddRestrDep (mkExtraDeps addedDepsCohs))).2 d),
+    transport (fun x => (depsCohs.deps.paintings.2 x).Dom)
+      (depsCohs.cohs.2 q Hq r Hr eps omega d)
+      (depsCohs.restrPaintings.2 q Hq eps _
+        ((mkRestrPaintings addedDepsCohs).2 r
+          (leR_trans Hr (leR_up Hq)) omega d c)) =
+    depsCohs.restrPaintings.2 r (leR_trans Hr Hq) omega _
+      ((mkRestrPaintings addedDepsCohs).2 q.succ
+        (leR_raise_both Hq) eps d c)
+
+def mkCohPaintingTypes {A : AritySig} :
+    {p k : Nat} -> {depsCohs : DepsCohs (A := A) p k} ->
+      DepsCohsExtension (A := A) p k depsCohs -> Type 1
+  | 0, _, _, _ => PUnit.{2}
+  | _ + 1, _, _, extraDepsCohs =>
+      { _ : mkCohPaintingTypes
+          (DepsCohsExtension.AddCohDep extraDepsCohs) &T
+        mkCohPaintingType extraDepsCohs }
 
 end Arity
 
