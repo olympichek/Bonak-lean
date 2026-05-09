@@ -97,66 +97,64 @@ abbrev mkLayerOf (A : AritySig) {p k : Nat} (deps : DepsRestr A p.succ k)
   hpiT (fun eps : A.arity =>
     deps.paintings.2 (deps.restrFrames.2 0 (leR_O (n := k)) eps d))
 
-inductive DepsRestrExtension (A : AritySig) :
-    (p k : Nat) -> DepsRestr A p k -> Type 1 where
-  | TopRestrDep {p : Nat} {deps : DepsRestr A p 0}
-      (E : mkFrame A deps -> HSet) :
-      DepsRestrExtension A p 0 deps
-  | AddRestrDep {p k : Nat} (deps : DepsRestr A p.succ k) :
-      DepsRestrExtension A p.succ k deps ->
-      DepsRestrExtension A p k.succ (proj1DepsRestr A deps)
+structure DepsRestrExtension (A : AritySig) (p k : Nat) where
+  deps : DepsRestr A p k
+  painting : mkFrame A deps -> HSet
 
-noncomputable def mkPainting (A : AritySig) :
-    {p k : Nat} -> {deps : DepsRestr A p k} ->
-      DepsRestrExtension A p k deps -> mkFrame A deps -> HSet
-  | _, _, _, extraDeps =>
-      DepsRestrExtension.rec
-        (motive := fun p k deps _ => mkFrame A (p := p) (k := k) deps -> HSet)
-        (fun E => E)
-        (fun deps _ ih =>
-          fun d =>
-        hsigT (fun l : mkLayerOf A deps d =>
-          ih
-            (existT (fun d : mkFrame A (proj1DepsRestr A deps) =>
-              mkLayerOf A deps d) d l)))
-        extraDeps
+def DepsRestrExtension.TopRestrDep {A : AritySig} {p : Nat}
+    (deps : DepsRestr A p 0) (E : mkFrame A deps -> HSet) :
+    DepsRestrExtension A p 0 :=
+  { deps := deps
+    painting := E }
 
-noncomputable def mkPaintingsPrefix (A : AritySig) :
-    {p k : Nat} -> {deps : DepsRestr A p k} ->
-      DepsRestrExtension A p k deps ->
-      mkPaintingTypes p k.succ (mkFrames A deps).1
-  | 0, _, _, _ => PUnit.unit
-  | p + 1, k, deps, extraDeps =>
-      let extraDeps' := DepsRestrExtension.AddRestrDep (A := A) deps extraDeps
+def DepsRestrExtension.AddRestrDep {A : AritySig} {p k : Nat}
+    (extraDeps : DepsRestrExtension A p.succ k) :
+    DepsRestrExtension A p k.succ :=
+  { deps := proj1DepsRestr A extraDeps.deps
+    painting := fun d =>
+      hsigT (fun l : mkLayerOf A extraDeps.deps d =>
+        extraDeps.painting
+          (existT (fun d : mkFrame A (proj1DepsRestr A extraDeps.deps) =>
+            mkLayerOf A extraDeps.deps d) d l)) }
+
+abbrev mkPainting (A : AritySig) {p k : Nat}
+    (extraDeps : DepsRestrExtension A p k) : mkFrame A extraDeps.deps -> HSet :=
+  extraDeps.painting
+
+def mkPaintingsPrefix (A : AritySig) :
+    {p k : Nat} -> (extraDeps : DepsRestrExtension A p k) ->
+      mkPaintingTypes p k.succ (mkFrames A extraDeps.deps).1
+  | 0, _, _ => PUnit.unit
+  | p + 1, k, extraDeps =>
+      let extraDeps' := DepsRestrExtension.AddRestrDep extraDeps
       existT
-        (fun _ : mkPaintingTypes p k.succ.succ (mkFrames A deps).1.1 =>
-          (mkFrames A deps).1.2 -> HSet)
+        (fun _ : mkPaintingTypes p k.succ.succ (mkFrames A extraDeps.deps).1.1 =>
+          (mkFrames A extraDeps.deps).1.2 -> HSet)
         (mkPaintingsPrefix A extraDeps')
         (mkPainting A extraDeps')
 
-noncomputable def mkPaintings (A : AritySig) {p k : Nat} {deps : DepsRestr A p k}
-    (extraDeps : DepsRestrExtension A p k deps) :
-    mkPaintingTypes p.succ k (mkFrames A deps) :=
+def mkPaintings (A : AritySig) {p k : Nat}
+    (extraDeps : DepsRestrExtension A p k) :
+    mkPaintingTypes p.succ k (mkFrames A extraDeps.deps) :=
   existT
-    (fun _ : mkPaintingTypes p k.succ (mkFrames A deps).1 =>
-      (mkFrames A deps).2 -> HSet)
+    (fun _ : mkPaintingTypes p k.succ (mkFrames A extraDeps.deps).1 =>
+      (mkFrames A extraDeps.deps).2 -> HSet)
     (mkPaintingsPrefix A extraDeps)
     (mkPainting A extraDeps)
 
-noncomputable def mkRestrPaintingType (A : AritySig) {p k : Nat} {deps : DepsRestr A p.succ k}
-    (extraDeps : DepsRestrExtension A p.succ k deps) : Type :=
+def mkRestrPaintingType (A : AritySig) {p k : Nat}
+    (extraDeps : DepsRestrExtension A p.succ k) : Type :=
   forall (q : Nat) (Hq : leR q k) (eps : A.arity),
-    (d : mkFrame A (proj1DepsRestr A deps)) ->
-    (mkPaintings A (DepsRestrExtension.AddRestrDep (A := A) deps extraDeps)).2 d ->
-    deps.paintings.2 (deps.restrFrames.2 q Hq eps d)
+    (d : mkFrame A (proj1DepsRestr A extraDeps.deps)) ->
+    (mkPaintings A (DepsRestrExtension.AddRestrDep extraDeps)).2 d ->
+    extraDeps.deps.paintings.2 (extraDeps.deps.restrFrames.2 q Hq eps d)
 
-noncomputable def mkRestrPaintingTypes (A : AritySig) :
-    {p k : Nat} -> {deps : DepsRestr A p k} ->
-      DepsRestrExtension A p k deps -> Type 1
-  | 0, _, _, _ => PUnit.{2}
-  | _ + 1, _, deps, extraDeps =>
+def mkRestrPaintingTypes (A : AritySig) :
+    {p k : Nat} -> DepsRestrExtension A p k -> Type 1
+  | 0, _, _ => PUnit.{2}
+  | _ + 1, _, extraDeps =>
       sigT (fun _ : mkRestrPaintingTypes
-          (A := A) (DepsRestrExtension.AddRestrDep (A := A) deps extraDeps) =>
+          (A := A) (DepsRestrExtension.AddRestrDep extraDeps) =>
         mkRestrPaintingType A extraDeps)
 
 end VSet
