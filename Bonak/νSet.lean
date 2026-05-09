@@ -11,6 +11,8 @@ layers will build on these explicit records.
 
 namespace Bonak
 
+open scoped Bonak
+
 structure AritySig where
   arity : HSet
 
@@ -38,15 +40,15 @@ def mkRestrFrameTypesStep {p k : Nat}
     (frames : mkFrameTypes p.succ k)
     (prev : RestrFrameTypeBlock p k.succ) : Type 1 :=
   { R : prev.RestrFrameTypesDef &T
-    forall q : Nat, leR q k -> A.arity -> (prev.FrameDef R).2 -> frames.2 }
+    forall q : Nat, q ≤ᵣ k -> A.arity -> (prev.FrameDef R).2 -> frames.2 }
 
 def mkLayer {p k : Nat} {frames : mkFrameTypes p.succ k}
     (paintings : mkPaintingTypes p.succ k frames)
     {prev : RestrFrameTypeBlock p k.succ}
     (restrFrames : mkRestrFrameTypesStep (A := A) frames prev)
     (d : (prev.FrameDef restrFrames.1).2) : HSet :=
-  hforall eps : A.arity,
-    paintings.2 (restrFrames.2 0 (leR_O (n := k)) eps d)
+  hforall ε : A.arity,
+    paintings.2 (restrFrames.2 0 (leR_O (n := k)) ε d)
 
 def mkRestrFrameTypesAndFrames {A : AritySig} :
     {p k : Nat} -> (frames : mkFrameTypes p k) ->
@@ -96,8 +98,8 @@ abbrev mkFrame {p k : Nat} (deps : DepsRestr (A := A) p k) : HSet :=
 
 abbrev mkLayerOf {p k : Nat} (deps : DepsRestr (A := A) p.succ k)
     (d : mkFrame (proj1DepsRestr deps)) : HSet :=
-  hforall eps : A.arity,
-    deps.paintings.2 (deps.restrFrames.2 0 (leR_O (n := k)) eps d)
+  hforall ε : A.arity,
+    deps.paintings.2 (deps.restrFrames.2 0 (leR_O (n := k)) ε d)
 
 structure DepsRestrExtension (p k : Nat) (deps : DepsRestr (A := A) p k) where
   painting : mkFrame deps -> HSet
@@ -143,11 +145,11 @@ def mkPaintings {p k : Nat} (deps : DepsRestr (A := A) p k)
 def mkRestrPaintingType {p k : Nat}
     {deps : DepsRestr (A := A) p.succ k}
     (extraDeps : DepsRestrExtension (A := A) p.succ k deps) : Type :=
-  forall (q : Nat) (Hq : leR q k) (eps : A.arity),
+  forall (q : Nat) (Hq : q ≤ᵣ k) (ε : A.arity),
     (d : mkFrame (proj1DepsRestr deps)) ->
     (mkPaintings (proj1DepsRestr deps)
       (DepsRestrExtension.AddRestrDep extraDeps)).2 d ->
-    deps.paintings.2 (deps.restrFrames.2 q Hq eps d)
+    deps.paintings.2 (deps.restrFrames.2 q Hq ε d)
 
 def mkRestrPaintingTypes {A : AritySig} :
     {p k : Nat} -> (deps : DepsRestr (A := A) p k) ->
@@ -172,14 +174,14 @@ def mkCohFrameTypesStep {p k : Nat}
       (DepsRestrExtension.AddRestrDep extraDeps)) :
     Type 1 :=
   { Q : prev.CohFrameTypesDef &T
-    forall (q : Nat) (Hq : leR q k) (r : Nat) (Hr : leR r q)
-      (eps omega : A.arity)
+    forall (q : Nat) (Hq : q ≤ᵣ k) (r : Nat) (Hr : r ≤ᵣ q)
+      (ε ω : A.arity)
       (d : mkFrame (proj1DepsRestr
         (toDepsRestr (prev.RestrFramesDef Q)))),
-      deps.restrFrames.2 q Hq eps
-        ((prev.RestrFramesDef Q).2 r (leR_trans Hr (leR_up Hq)) omega d) =
-      deps.restrFrames.2 r (leR_trans Hr Hq) omega
-        ((prev.RestrFramesDef Q).2 q.succ (leR_raise_both Hq) eps d) }
+      deps.restrFrames.2 q Hq ε
+        ((prev.RestrFramesDef Q).2 r (Hr ↕ ↑ᵣ Hq) ω d) =
+      deps.restrFrames.2 r (Hr ↕ Hq) ω
+        ((prev.RestrFramesDef Q).2 q.succ (⇑ᵣ Hq) ε d) }
 
 def mkRestrLayer {p k : Nat}
     {deps : DepsRestr (A := A) p.succ k}
@@ -188,7 +190,7 @@ def mkRestrLayer {p k : Nat}
     {prev : CohFrameTypeBlock
       (DepsRestrExtension.AddRestrDep extraDeps)}
     (cohFrames : mkCohFrameTypesStep extraDeps prev)
-    (q : Nat) (Hq : leR q k) (eps : A.arity)
+    (q : Nat) (Hq : q ≤ᵣ k) (ε : A.arity)
     (d : mkFrame (proj1DepsRestr
       (toDepsRestr (prev.RestrFramesDef cohFrames.1)))) :
     mkLayer
@@ -196,11 +198,11 @@ def mkRestrLayer {p k : Nat}
         (DepsRestrExtension.AddRestrDep extraDeps))
       (prev.RestrFramesDef cohFrames.1) d ->
     mkLayer deps.paintings deps.restrFrames
-      ((prev.RestrFramesDef cohFrames.1).2 q.succ (leR_raise_both Hq) eps d) :=
-  fun l omega =>
+      ((prev.RestrFramesDef cohFrames.1).2 q.succ (⇑ᵣ Hq) ε d) :=
+  fun l ω =>
     transport (fun x => (deps.paintings.2 x).Dom)
-      (cohFrames.2 q Hq 0 leR_O eps omega d)
-      (restrPaintings.2 q Hq eps _ (l omega))
+      (cohFrames.2 q Hq 0 leR_O ε ω d)
+      (restrPaintings.2 q Hq ε _ (l ω))
 
 def mkCohFrameTypesAndRestrFrames {A : AritySig} :
     {p k : Nat} -> (deps : DepsRestr (A := A) p k) ->
@@ -218,9 +220,9 @@ def mkCohFrameTypesAndRestrFrames {A : AritySig} :
       { CohFrameTypesDef := mkCohFrameTypesStep extraDeps prev
         RestrFramesDef := fun Q =>
           (restrFrames Q.1 ;
-            fun q Hq eps d =>
-              ((restrFrames Q.1).2 q.succ (leR_raise_both Hq) eps d.1 ;
-                mkRestrLayer restrPaintings Q q Hq eps d.1 d.2)) }
+            fun q Hq ε d =>
+              ((restrFrames Q.1).2 q.succ (⇑ᵣ Hq) ε d.1 ;
+                mkRestrLayer restrPaintings Q q Hq ε d.1 d.2)) }
 
 abbrev mkCohFrameTypes {p k : Nat} {deps : DepsRestr (A := A) p k}
     {extraDeps : DepsRestrExtension (A := A) p k deps}
@@ -267,7 +269,7 @@ def mkDepsRestr {p k : Nat}
 
 abbrev mkRestrFrame {p k : Nat}
     (depsCohs : DepsCohs (A := A) p k) :
-    forall q : Nat, leR q k -> A.arity ->
+    forall q : Nat, q ≤ᵣ k -> A.arity ->
       mkFrame (proj1DepsRestr (mkDepsRestr depsCohs)) ->
       mkFrame depsCohs.deps :=
   (mkRestrFrames depsCohs).2
@@ -285,7 +287,7 @@ def DepsCohsExtension.TopCohDep {p : Nat}
   { extraDeps := extraDeps
     restrPainting :=
       fun
-      | 0, _, eps, _, c => c.1 eps
+      | 0, _, ε, _, c => c.1 ε
       | q + 1, Hq, _, _, _ => nomatch leR_O_contra (n := q) Hq }
 
 def DepsCohsExtension.AddCohDep {p k : Nat}
@@ -295,11 +297,11 @@ def DepsCohsExtension.AddCohDep {p k : Nat}
   { extraDeps := DepsRestrExtension.AddRestrDep extraDepsCohs.extraDeps
     restrPainting :=
       fun
-      | 0, _, eps, _, c => c.1 eps
-      | q + 1, Hq, eps, d, c =>
+      | 0, _, ε, _, c => c.1 ε
+      | q + 1, Hq, ε, d, c =>
           (mkRestrLayer depsCohs.restrPaintings depsCohs.cohs
-              q (leR_lower_both Hq) eps d c.1 ;
-            extraDepsCohs.restrPainting q (leR_lower_both Hq) eps
+              q (⇓ᵣ Hq) ε d c.1 ;
+            extraDepsCohs.restrPainting q (⇓ᵣ Hq) ε
               (d ; c.1) c.2) }
 
 abbrev mkExtraDeps {p k : Nat} {depsCohs : DepsCohs (A := A) p k}
@@ -335,20 +337,20 @@ def mkCohPaintingType {p k : Nat}
     (extraDepsCohs :
       DepsCohsExtension (A := A) p.succ k depsCohs) : Prop :=
   let addedDepsCohs := DepsCohsExtension.AddCohDep extraDepsCohs
-  forall (q : Nat) (Hq : leR q k) (r : Nat) (Hr : leR r q)
-    (eps omega : A.arity)
+  forall (q : Nat) (Hq : q ≤ᵣ k) (r : Nat) (Hr : r ≤ᵣ q)
+    (ε ω : A.arity)
     (d : mkFrame (proj1DepsRestr (mkDepsRestr (proj1DepsCohs depsCohs))))
     (c : (mkPaintings
       (proj1DepsRestr (mkDepsRestr (proj1DepsCohs depsCohs)))
       (DepsRestrExtension.AddRestrDep (mkExtraDeps addedDepsCohs))).2 d),
     transport (fun x => (depsCohs.deps.paintings.2 x).Dom)
-      (depsCohs.cohs.2 q Hq r Hr eps omega d)
-      (depsCohs.restrPaintings.2 q Hq eps _
+      (depsCohs.cohs.2 q Hq r Hr ε ω d)
+      (depsCohs.restrPaintings.2 q Hq ε _
         ((mkRestrPaintings addedDepsCohs).2 r
-          (leR_trans Hr (leR_up Hq)) omega d c)) =
-    depsCohs.restrPaintings.2 r (leR_trans Hr Hq) omega _
+          (Hr ↕ ↑ᵣ Hq) ω d c)) =
+    depsCohs.restrPaintings.2 r (Hr ↕ Hq) ω _
       ((mkRestrPaintings addedDepsCohs).2 q.succ
-        (leR_raise_both Hq) eps d c)
+        (⇑ᵣ Hq) ε d c)
 
 def mkCohPaintingTypes {A : AritySig} :
     {p k : Nat} -> {depsCohs : DepsCohs (A := A) p k} ->

@@ -39,10 +39,10 @@ theorem rew_app_rl {A : Sort u} (P : A -> Sort v) (x y : A)
   cases H
   rfl
 
-theorem map_subst_app {A : Sort u} {B : Sort v} {x y : B} {theta : A}
-    (H : x = y) (P : A -> B -> Sort w) (f : forall theta, P theta x) :
-    transport (P theta) H (f theta) =
-      (transport (fun x => forall theta, P theta x) H f) theta := by
+theorem map_subst_app {A : Sort u} {B : Sort v} {x y : B} {θ : A}
+    (H : x = y) (P : A -> B -> Sort w) (f : forall a, P a x) :
+    transport (P θ) H (f θ) =
+      (transport (fun x => forall a, P a x) H f) θ := by
   cases H
   rfl
 
