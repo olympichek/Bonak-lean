@@ -58,6 +58,11 @@ def hsigT {A : HSet} (B : A -> HSet) : HSet :=
   { Dom := sigT (fun a : A => B a)
     UIP := fun p q => sigT_UIP _ _ p q }
 
+open Lean TSyntax.Compat
+
+macro "{" xs:explicitBinders " & " b:term "}" : term =>
+  expandExplicitBinders ``hsigT xs b
+
 theorem hpiT_UIP {A : Type} (B : A -> HSet)
     (f g : forall a : A, B a) (p q : f = g) :
     p = q := by
@@ -68,5 +73,8 @@ theorem hpiT_UIP {A : Type} (B : A -> HSet)
 def hpiT {A : Type} (B : A -> HSet) : HSet :=
   { Dom := forall a : A, B a
     UIP := fun p q => hpiT_UIP B _ _ p q }
+
+macro "hforall " xs:explicitBinders ", " b:term : term =>
+  expandExplicitBinders ``hpiT xs b
 
 end Bonak

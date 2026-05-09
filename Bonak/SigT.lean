@@ -18,6 +18,13 @@ abbrev sigT {A : Type u} (P : A -> Type v) : Type (max u v) :=
 def existT {A : Type u} (P : A -> Type v) (a : A) (b : P a) : sigT P :=
   PSigma.mk a b
 
+open Lean TSyntax.Compat
+
+macro "{" xs:explicitBinders " &T " b:term "}" : term =>
+  expandExplicitBinders ``sigT xs b
+
+notation "(" x " ; " y ")" => existT _ x y
+
 abbrev projT1 {A : Type u} {P : A -> Type v} (x : sigT P) : A :=
   x.1
 
@@ -54,6 +61,8 @@ theorem eq_existT_curried {A : Type u} {P : A -> Type v} {u1 v1 : A}
     (q : transport P p u2 = v2) :
     existT P u1 u2 = existT P v1 v2 :=
   eq_existT_uncurried ⟨p, q⟩
+
+notation "(= " p " ; " q ")" => eq_existT_curried p q
 
 def projT1_eq {A : Type u} {P : A -> Type v} {u v : sigT P}
     (p : u = v) : projT1 u = projT1 v :=

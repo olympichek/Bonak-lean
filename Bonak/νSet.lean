@@ -14,17 +14,17 @@ namespace Bonak
 structure AritySig where
   arity : HSet
 
-namespace VSet
+namespace νSet
 
 def mkFrameTypes : Nat -> Nat -> Type 1
   | 0, _ => PUnit.{2}
-  | p + 1, k => sigT (fun _ : mkFrameTypes p (k + 1) => HSet)
+  | p + 1, k => { _ : mkFrameTypes p (k + 1) &T HSet }
 
 def mkPaintingTypes : (p k : Nat) -> mkFrameTypes p k -> Type 1
   | 0, _, _ => PUnit.{2}
   | p + 1, k, frames =>
-      sigT (fun _ : mkPaintingTypes p (k + 1) frames.1 =>
-        (frames.2 : Type) -> HSet)
+      { _ : mkPaintingTypes p (k + 1) frames.1 &T
+        (frames.2 : Type) -> HSet }
 
 structure RestrFrameTypeBlock (p k : Nat) where
   RestrFrameTypesDef : Type 1
@@ -33,16 +33,16 @@ structure RestrFrameTypeBlock (p k : Nat) where
 def mkRestrFrameTypesStep (A : AritySig) {p k : Nat}
     (frames : mkFrameTypes p.succ k)
     (prev : RestrFrameTypeBlock p k.succ) : Type 1 :=
-  sigT (fun R : prev.RestrFrameTypesDef =>
-    forall q : Nat, leR q k -> A.arity -> (prev.FrameDef R).2 -> frames.2)
+  { R : prev.RestrFrameTypesDef &T
+    forall q : Nat, leR q k -> A.arity -> (prev.FrameDef R).2 -> frames.2 }
 
 def mkLayer (A : AritySig) {p k : Nat} {frames : mkFrameTypes p.succ k}
     (paintings : mkPaintingTypes p.succ k frames)
     {prev : RestrFrameTypeBlock p k.succ}
     (restrFrames : mkRestrFrameTypesStep A frames prev)
     (d : (prev.FrameDef restrFrames.1).2) : HSet :=
-  hpiT (fun eps : A.arity =>
-    paintings.2 (restrFrames.2 0 (leR_O (n := k)) eps d))
+  hforall eps : A.arity,
+    paintings.2 (restrFrames.2 0 (leR_O (n := k)) eps d)
 
 def mkRestrFrameTypesAndFrames (A : AritySig) :
     {p k : Nat} -> (frames : mkFrameTypes p k) ->
@@ -50,17 +50,14 @@ def mkRestrFrameTypesAndFrames (A : AritySig) :
   | 0, _, _, _ =>
       { RestrFrameTypesDef := PUnit.{2}
         FrameDef := fun _ =>
-          existT (fun _ : PUnit.{2} => HSet) PUnit.unit hunit }
+          (PUnit.unit ; hunit) }
   | p + 1, k, frames, paintings =>
       let prev := mkRestrFrameTypesAndFrames A
         (p := p) (k := k + 1) frames.1 paintings.1
       { RestrFrameTypesDef := mkRestrFrameTypesStep A frames prev
         FrameDef := fun R =>
-          existT
-            (fun _ : mkFrameTypes p.succ k.succ => HSet)
-            (prev.FrameDef R.1)
-            (hsigT (fun d : (prev.FrameDef R.1).2 =>
-              mkLayer A paintings R d)) }
+          (prev.FrameDef R.1 ;
+            { d : (prev.FrameDef R.1).2 & mkLayer A paintings R d }) }
 
 abbrev mkRestrFrameTypes (A : AritySig) {p k : Nat} {frames : mkFrameTypes p k}
     (paintings : mkPaintingTypes p k frames) : Type 1 :=
@@ -94,8 +91,8 @@ abbrev mkFrame (A : AritySig) {p k : Nat} (deps : DepsRestr A p k) : HSet :=
 
 abbrev mkLayerOf (A : AritySig) {p k : Nat} (deps : DepsRestr A p.succ k)
     (d : mkFrame A (proj1DepsRestr A deps)) : HSet :=
-  hpiT (fun eps : A.arity =>
-    deps.paintings.2 (deps.restrFrames.2 0 (leR_O (n := k)) eps d))
+  hforall eps : A.arity,
+    deps.paintings.2 (deps.restrFrames.2 0 (leR_O (n := k)) eps d)
 
 structure DepsRestrExtension (A : AritySig) (p k : Nat) where
   deps : DepsRestr A p k
@@ -112,10 +109,10 @@ def DepsRestrExtension.AddRestrDep {A : AritySig} {p k : Nat}
     DepsRestrExtension A p k.succ :=
   { deps := proj1DepsRestr A extraDeps.deps
     painting := fun d =>
-      hsigT (fun l : mkLayerOf A extraDeps.deps d =>
+      { l : mkLayerOf A extraDeps.deps d &
         extraDeps.painting
           (existT (fun d : mkFrame A (proj1DepsRestr A extraDeps.deps) =>
-            mkLayerOf A extraDeps.deps d) d l)) }
+            mkLayerOf A extraDeps.deps d) d l) } }
 
 abbrev mkPainting (A : AritySig) {p k : Nat}
     (extraDeps : DepsRestrExtension A p k) : mkFrame A extraDeps.deps -> HSet :=
@@ -125,22 +122,14 @@ def mkPaintingsPrefix (A : AritySig) :
     {p k : Nat} -> (extraDeps : DepsRestrExtension A p k) ->
       mkPaintingTypes p k.succ (mkFrames A extraDeps.deps).1
   | 0, _, _ => PUnit.unit
-  | p + 1, k, extraDeps =>
+  | _ + 1, _, extraDeps =>
       let extraDeps' := DepsRestrExtension.AddRestrDep extraDeps
-      existT
-        (fun _ : mkPaintingTypes p k.succ.succ (mkFrames A extraDeps.deps).1.1 =>
-          (mkFrames A extraDeps.deps).1.2 -> HSet)
-        (mkPaintingsPrefix A extraDeps')
-        (mkPainting A extraDeps')
+      (mkPaintingsPrefix A extraDeps' ; mkPainting A extraDeps')
 
 def mkPaintings (A : AritySig) {p k : Nat}
     (extraDeps : DepsRestrExtension A p k) :
     mkPaintingTypes p.succ k (mkFrames A extraDeps.deps) :=
-  existT
-    (fun _ : mkPaintingTypes p k.succ (mkFrames A extraDeps.deps).1 =>
-      (mkFrames A extraDeps.deps).2 -> HSet)
-    (mkPaintingsPrefix A extraDeps)
-    (mkPainting A extraDeps)
+  (mkPaintingsPrefix A extraDeps ; mkPainting A extraDeps)
 
 def mkRestrPaintingType (A : AritySig) {p k : Nat}
     (extraDeps : DepsRestrExtension A p.succ k) : Type :=
@@ -153,9 +142,9 @@ def mkRestrPaintingTypes (A : AritySig) :
     {p k : Nat} -> DepsRestrExtension A p k -> Type 1
   | 0, _, _ => PUnit.{2}
   | _ + 1, _, extraDeps =>
-      sigT (fun _ : mkRestrPaintingTypes
-          (A := A) (DepsRestrExtension.AddRestrDep extraDeps) =>
-        mkRestrPaintingType A extraDeps)
+      { _ : mkRestrPaintingTypes
+          (A := A) (DepsRestrExtension.AddRestrDep extraDeps) &T
+        mkRestrPaintingType A extraDeps }
 
-end VSet
+end νSet
 end Bonak
