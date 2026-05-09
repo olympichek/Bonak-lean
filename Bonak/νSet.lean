@@ -361,6 +361,98 @@ def mkCohPaintingTypes {A : AritySig} :
           (DepsCohsExtension.AddCohDep extraDepsCohs) &T
         mkCohPaintingType extraDepsCohs }
 
+theorem mkCoh2Frame {p k : Nat}
+    {depsCohs : DepsCohs (A := A) p.succ k}
+    (extraDepsCohs :
+      DepsCohsExtension (A := A) p.succ k depsCohs)
+    (prevCohFrames : mkCohFrameTypes
+      (deps := proj1DepsRestr (mkDepsRestr depsCohs))
+      (extraDeps := DepsRestrExtension.AddRestrDep
+        (mkExtraDeps extraDepsCohs))
+      (mkRestrPaintings extraDepsCohs).1) :
+    forall (q : Nat) (Hq : q ≤ᵣ k) (r : Nat) (Hr : r ≤ᵣ q)
+      (ε ω : A.arity)
+      (d : mkFrame (proj1DepsRestr
+        (mkDepsRestr (toDepsCohs prevCohFrames.1))))
+      (θ : A.arity),
+      (congrArg (fun x => depsCohs.deps.restrFrames.2 q Hq ε x)
+        (prevCohFrames.2 r (Hr ↕ ↑ᵣ Hq) 0 leR_O ω θ d)).trans
+        ((depsCohs.cohs.2 q Hq 0 leR_O ε θ
+          (mkRestrFrame (toDepsCohs prevCohFrames.1)
+            r.succ (⇑ᵣ (Hr ↕ ↑ᵣ Hq)) ω d)).trans
+          (congrArg (fun x =>
+              depsCohs.deps.restrFrames.2 0 leR_O θ x)
+            (prevCohFrames.2 q.succ (⇑ᵣ Hq)
+              r.succ (⇑ᵣ Hr) ε ω d))) =
+      (depsCohs.cohs.2 q Hq r Hr ε ω
+        (mkRestrFrame (toDepsCohs prevCohFrames.1) 0 leR_O θ d)).trans
+        ((congrArg (fun x =>
+          depsCohs.deps.restrFrames.2 r (Hr ↕ Hq) ω x)
+          (prevCohFrames.2 q.succ (⇑ᵣ Hq) 0 leR_O ε θ d)).trans
+          (depsCohs.cohs.2 r (Hr ↕ Hq) 0 leR_O ω θ
+            (mkRestrFrame (toDepsCohs prevCohFrames.1)
+              q.succ.succ (⇑ᵣ (⇑ᵣ Hq)) ε d))) := by
+  intro q Hq r Hr ε ω d θ
+  exact (depsCohs.deps.frames.2).UIP _ _
+
+theorem mkCohLayer {p k : Nat}
+    {depsCohs : DepsCohs (A := A) p.succ k}
+    (extraDepsCohs :
+      DepsCohsExtension (A := A) p.succ k depsCohs)
+    (cohPaintings : mkCohPaintingTypes (A := A) extraDepsCohs)
+    {prevCohFrames : mkCohFrameTypes
+      (deps := proj1DepsRestr (mkDepsRestr depsCohs))
+      (extraDeps := DepsRestrExtension.AddRestrDep
+        (mkExtraDeps extraDepsCohs))
+      (mkRestrPaintings extraDepsCohs).1}
+    (q : Nat) {Hq : q ≤ᵣ k} (r : Nat) {Hr : r ≤ᵣ q}
+    (ε ω : A.arity)
+    (d : mkFrame (proj1DepsRestr
+      (mkDepsRestr (toDepsCohs prevCohFrames.1))))
+    (l : mkLayer
+      (mkPaintings (toDepsCohs prevCohFrames.1).deps
+        (toDepsCohs prevCohFrames.1).extraDeps)
+      (mkRestrFrames (toDepsCohs prevCohFrames.1)) d) :
+    transport
+      (fun x => (mkLayer depsCohs.deps.paintings
+        depsCohs.deps.restrFrames x).Dom)
+      (prevCohFrames.2 q.succ (⇑ᵣ Hq)
+        r.succ (⇑ᵣ Hr) ε ω d)
+      (mkRestrLayer depsCohs.restrPaintings depsCohs.cohs
+        q Hq ε _
+        (mkRestrLayer (mkRestrPaintings extraDepsCohs).1
+          prevCohFrames r (Hr ↕ ↑ᵣ Hq) ω d l)) =
+    mkRestrLayer depsCohs.restrPaintings depsCohs.cohs
+      r (Hr ↕ Hq) ω _
+      (mkRestrLayer (mkRestrPaintings extraDepsCohs).1
+        prevCohFrames q.succ (⇑ᵣ Hq) ε d l) := by
+  funext θ
+  erw [← map_subst_app]
+  simp only [mkRestrLayer]
+  erw [← map_subst
+    (P := fun x => ((proj1DepsRestr (mkDepsRestr depsCohs)).paintings.2 x).Dom)
+    (f := fun x z => depsCohs.restrPaintings.2 q Hq ε x z)]
+  erw [← map_subst
+    (P := fun x => ((proj1DepsRestr (mkDepsRestr depsCohs)).paintings.2 x).Dom)
+    (f := fun x z => depsCohs.restrPaintings.2 r (Hr ↕ Hq) ω x z)]
+  erw [← cohPaintings.2 q Hq r Hr ε ω
+    ((mkRestrFrames (toDepsCohs prevCohFrames.1)).2 0 leR_O θ d)
+    (l θ)]
+  erw [rew_map
+    (P := fun x => (depsCohs.deps.paintings.2 x).Dom)
+    (f := fun x => depsCohs.deps.restrFrames.2 0 leR_O θ x)]
+  erw [rew_map
+    (P := fun x => (depsCohs.deps.paintings.2 x).Dom)
+    (f := fun x => depsCohs.deps.restrFrames.2 q Hq ε x)]
+  erw [rew_map
+    (P := fun x => (depsCohs.deps.paintings.2 x).Dom)
+    (f := fun x => depsCohs.deps.restrFrames.2 r (Hr ↕ Hq) ω x)]
+  repeat erw [rew_compose]
+  apply (rew_swap (fun x => (depsCohs.deps.paintings.2 x).Dom) _ _ _ _ _).mp
+  erw [rew_app_lr (fun x => (depsCohs.deps.paintings.2 x).Dom)]
+  · rfl
+  · exact (mkCoh2Frame extraDepsCohs prevCohFrames q Hq r Hr ε ω d θ)
+
 end Arity
 
 end νSet

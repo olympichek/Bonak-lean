@@ -9,7 +9,7 @@ proved only by equality elimination.
 
 namespace Bonak
 
-universe u v w
+universe u v w t
 
 theorem rew_permute_ll_hset {A : Type u} (P Q : A -> HSet)
     (x y : A) (H : forall z : A, P z = Q z) (H' : x = y)
@@ -37,6 +37,44 @@ theorem rew_app_rl {A : Sort u} (P : A -> Sort v) (x y : A)
   intro h
   cases h
   cases H
+  rfl
+
+theorem rew_app_lr {A : Sort u} (P : A -> Sort v) (x y : A)
+    (H : y = x) (H2 : x = y) (a : P x) :
+    H.symm = H2 -> transport P H (transport P H2 a) = a := by
+  intro h
+  cases H
+  cases h
+  rfl
+
+theorem map_subst {A : Sort u} {P : A -> Sort v} {Q : A -> Sort w}
+    (f : forall x, P x -> Q x) {x y : A} (H : x = y) (z : P x) :
+    transport Q H (f x z) = f y (transport P H z) := by
+  cases H
+  rfl
+
+theorem rew_map {A : Sort u} {B : Sort v} (P : B -> Sort w)
+    (f : A -> B) {x y : A} (H : x = y) (a : P (f x)) :
+    transport (fun x => P (f x)) H a =
+      transport P (congrArg f H) a := by
+  cases H
+  rfl
+
+theorem map_subst_map {A : Sort u} {B : Sort v} {P : A -> Sort w}
+    {Q : B -> Sort t} (f : A -> B)
+    (g : forall x, P x -> Q (f x)) {x y : A}
+    (H : x = y) (z : P x) :
+    transport Q (congrArg f H) (g x z) =
+      g y (transport P H z) := by
+  cases H
+  rfl
+
+theorem rew_compose {A : Sort u} (P : A -> Sort v) {x y z : A}
+    (H : x = y) (H2 : y = z) (a : P x) :
+    transport P H2 (transport P H a) =
+      transport P (H.trans H2) a := by
+  cases H
+  cases H2
   rfl
 
 theorem map_subst_app {A : Sort u} {B : Sort v} {x y : B} {θ : A}
