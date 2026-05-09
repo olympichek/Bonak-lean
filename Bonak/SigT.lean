@@ -12,10 +12,10 @@ namespace Bonak
 
 universe u v w
 
-abbrev sigT {A : Type u} (P : A -> Type v) : Type (max u v) :=
+abbrev sigT {A : Sort u} (P : A -> Sort v) : Sort (max (max 1 u) v) :=
   PSigma P
 
-def existT {A : Type u} (P : A -> Type v) (a : A) (b : P a) : sigT P :=
+def existT {A : Sort u} (P : A -> Sort v) (a : A) (b : P a) : sigT P :=
   PSigma.mk a b
 
 open Lean TSyntax.Compat
@@ -25,17 +25,17 @@ macro "{" xs:explicitBinders " &T " b:term "}" : term =>
 
 notation "(" x " ; " y ")" => existT _ x y
 
-abbrev projT1 {A : Type u} {P : A -> Type v} (x : sigT P) : A :=
+abbrev projT1 {A : Sort u} {P : A -> Sort v} (x : sigT P) : A :=
   x.1
 
-abbrev projT2 {A : Type u} {P : A -> Type v} (x : sigT P) : P x.1 :=
+abbrev projT2 {A : Sort u} {P : A -> Sort v} (x : sigT P) : P x.1 :=
   x.2
 
 def transport {A : Sort u} (P : A -> Sort v) {x y : A} (p : x = y)
     (a : P x) : P y :=
   p ▸ a
 
-theorem eq_existT_uncurried {A : Type u} {P : A -> Type v} {u1 v1 : A}
+theorem eq_existT_uncurried {A : Sort u} {P : A -> Sort v} {u1 v1 : A}
     {u2 : P u1} {v2 : P v1}
     (pq : PSigma (fun p : u1 = v1 => transport P p u2 = v2)) :
     existT P u1 u2 = existT P v1 v2 := by
@@ -45,7 +45,7 @@ theorem eq_existT_uncurried {A : Type u} {P : A -> Type v} {u1 v1 : A}
       cases q
       rfl
 
-theorem eq_sigT_uncurried {A : Type u} {P : A -> Type v}
+theorem eq_sigT_uncurried {A : Sort u} {P : A -> Sort v}
     (u v : sigT P)
     (pq : PSigma (fun p : projT1 u = projT1 v =>
       transport P p (projT2 u) = projT2 v)) :
@@ -56,7 +56,7 @@ theorem eq_sigT_uncurried {A : Type u} {P : A -> Type v}
       | mk v1 v2 =>
           exact eq_existT_uncurried pq
 
-theorem eq_existT_curried {A : Type u} {P : A -> Type v} {u1 v1 : A}
+theorem eq_existT_curried {A : Sort u} {P : A -> Sort v} {u1 v1 : A}
     {u2 : P u1} {v2 : P v1} (p : u1 = v1)
     (q : transport P p u2 = v2) :
     existT P u1 u2 = existT P v1 v2 :=
@@ -64,11 +64,11 @@ theorem eq_existT_curried {A : Type u} {P : A -> Type v} {u1 v1 : A}
 
 notation "(= " p " ; " q ")" => eq_existT_curried p q
 
-def projT1_eq {A : Type u} {P : A -> Type v} {u v : sigT P}
+def projT1_eq {A : Sort u} {P : A -> Sort v} {u v : sigT P}
     (p : u = v) : projT1 u = projT1 v :=
   congrArg projT1 p
 
-def projT2_eq {A : Type u} {P : A -> Type v} {u v : sigT P}
+def projT2_eq {A : Sort u} {P : A -> Sort v} {u v : sigT P}
     (p : u = v) : transport P (projT1_eq p) (projT2 u) = projT2 v := by
   cases p
   rfl
