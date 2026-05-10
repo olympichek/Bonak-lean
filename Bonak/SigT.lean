@@ -35,6 +35,19 @@ def transport {A : Sort u} (P : A -> Sort v) {x y : A} (p : x = y)
     (a : P x) : P y :=
   p ▸ a
 
+scoped syntax (name := rewIn) "rew " term:61 " in " term:60 : term
+
+scoped syntax (name := rewInExplicit)
+  "rew " "[" term "]" term:61 " in " term:60 : term
+
+macro_rules (kind := rewIn)
+  | `(rew $p in $a) => `(transport _ $p $a)
+
+macro_rules (kind := rewInExplicit)
+  | `(rew [$P] $p in $a) => `(transport $P $p $a)
+
+scoped infixl:75 " ⬝ " => Eq.trans
+
 theorem eq_existT_uncurried {A : Sort u} {P : A -> Sort v} {u1 v1 : A}
     {u2 : P u1} {v2 : P v1}
     (pq : PSigma (fun p : u1 = v1 => transport P p u2 = v2)) :

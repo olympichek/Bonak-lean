@@ -200,9 +200,9 @@ def mkRestrLayer {p k : Nat}
     mkLayer deps.paintings deps.restrFrames
       ((prev.RestrFramesDef cohFrames.1).2 q.succ (⇑ᵣ Hq) ε d) :=
   fun l ω =>
-    transport (fun x => (deps.paintings.2 x).Dom)
-      (cohFrames.2 q Hq 0 leR_O ε ω d)
-      (restrPaintings.2 q Hq ε _ (l ω))
+    rew [fun x => (deps.paintings.2 x).Dom]
+      (cohFrames.2 q Hq 0 leR_O ε ω d) in
+    restrPaintings.2 q Hq ε _ (l ω)
 
 def mkCohFrameTypesAndRestrFrames {A : AritySig} :
     {p k : Nat} -> (deps : DepsRestr (A := A) p k) ->
@@ -343,14 +343,12 @@ def mkCohPaintingType {p k : Nat}
     (c : (mkPaintings
       (proj1DepsRestr (mkDepsRestr (proj1DepsCohs depsCohs)))
       (DepsRestrExtension.AddRestrDep (mkExtraDeps addedDepsCohs))).2 d),
-    transport (fun x => (depsCohs.deps.paintings.2 x).Dom)
-      (depsCohs.cohs.2 q Hq r Hr ε ω d)
-      (depsCohs.restrPaintings.2 q Hq ε _
-        ((mkRestrPaintings addedDepsCohs).2 r
-          (Hr ↕ ↑ᵣ Hq) ω d c)) =
+    rew [fun x => (depsCohs.deps.paintings.2 x).Dom]
+      (depsCohs.cohs.2 q Hq r Hr ε ω d) in
+    depsCohs.restrPaintings.2 q Hq ε _
+      ((mkRestrPaintings addedDepsCohs).2 r (Hr ↕ ↑ᵣ Hq) ω d c) =
     depsCohs.restrPaintings.2 r (Hr ↕ Hq) ω _
-      ((mkRestrPaintings addedDepsCohs).2 q.succ
-        (⇑ᵣ Hq) ε d c)
+      ((mkRestrPaintings addedDepsCohs).2 q.succ (⇑ᵣ Hq) ε d c)
 
 def mkCohPaintingTypes {A : AritySig} :
     {p k : Nat} -> {depsCohs : DepsCohs (A := A) p k} ->
@@ -376,20 +374,19 @@ theorem mkCoh2Frame {p k : Nat}
         (mkDepsRestr (toDepsCohs prevCohFrames.1))))
       (θ : A.arity),
       (congrArg (fun x => depsCohs.deps.restrFrames.2 q Hq ε x)
-        (prevCohFrames.2 r (Hr ↕ ↑ᵣ Hq) 0 leR_O ω θ d)).trans
-        ((depsCohs.cohs.2 q Hq 0 leR_O ε θ
+        (prevCohFrames.2 r (Hr ↕ ↑ᵣ Hq) 0 leR_O ω θ d) ⬝
+        (depsCohs.cohs.2 q Hq 0 leR_O ε θ
           (mkRestrFrame (toDepsCohs prevCohFrames.1)
-            r.succ (⇑ᵣ (Hr ↕ ↑ᵣ Hq)) ω d)).trans
-          (congrArg (fun x =>
+            r.succ (⇑ᵣ (Hr ↕ ↑ᵣ Hq)) ω d) ⬝
+          congrArg (fun x =>
               depsCohs.deps.restrFrames.2 0 leR_O θ x)
             (prevCohFrames.2 q.succ (⇑ᵣ Hq)
               r.succ (⇑ᵣ Hr) ε ω d))) =
       (depsCohs.cohs.2 q Hq r Hr ε ω
-        (mkRestrFrame (toDepsCohs prevCohFrames.1) 0 leR_O θ d)).trans
-        ((congrArg (fun x =>
-          depsCohs.deps.restrFrames.2 r (Hr ↕ Hq) ω x)
-          (prevCohFrames.2 q.succ (⇑ᵣ Hq) 0 leR_O ε θ d)).trans
-          (depsCohs.cohs.2 r (Hr ↕ Hq) 0 leR_O ω θ
+        (mkRestrFrame (toDepsCohs prevCohFrames.1) 0 leR_O θ d) ⬝
+        (congrArg (fun x => depsCohs.deps.restrFrames.2 r (Hr ↕ Hq) ω x)
+          (prevCohFrames.2 q.succ (⇑ᵣ Hq) 0 leR_O ε θ d) ⬝
+          depsCohs.cohs.2 r (Hr ↕ Hq) 0 leR_O ω θ
             (mkRestrFrame (toDepsCohs prevCohFrames.1)
               q.succ.succ (⇑ᵣ (⇑ᵣ Hq)) ε d))) := by
   intro q Hq r Hr ε ω d θ
@@ -413,17 +410,13 @@ theorem mkCohLayer {p k : Nat}
       (mkPaintings (toDepsCohs prevCohFrames.1).deps
         (toDepsCohs prevCohFrames.1).extraDeps)
       (mkRestrFrames (toDepsCohs prevCohFrames.1)) d) :
-    transport
-      (fun x => (mkLayer depsCohs.deps.paintings
-        depsCohs.deps.restrFrames x).Dom)
-      (prevCohFrames.2 q.succ (⇑ᵣ Hq)
-        r.succ (⇑ᵣ Hr) ε ω d)
-      (mkRestrLayer depsCohs.restrPaintings depsCohs.cohs
-        q Hq ε _
-        (mkRestrLayer (mkRestrPaintings extraDepsCohs).1
-          prevCohFrames r (Hr ↕ ↑ᵣ Hq) ω d l)) =
-    mkRestrLayer depsCohs.restrPaintings depsCohs.cohs
-      r (Hr ↕ Hq) ω _
+    rew [fun x => (mkLayer depsCohs.deps.paintings
+        depsCohs.deps.restrFrames x).Dom]
+      (prevCohFrames.2 q.succ (⇑ᵣ Hq) r.succ (⇑ᵣ Hr) ε ω d) in
+    mkRestrLayer depsCohs.restrPaintings depsCohs.cohs q Hq ε _
+      (mkRestrLayer (mkRestrPaintings extraDepsCohs).1
+        prevCohFrames r (Hr ↕ ↑ᵣ Hq) ω d l) =
+    mkRestrLayer depsCohs.restrPaintings depsCohs.cohs r (Hr ↕ Hq) ω _
       (mkRestrLayer (mkRestrPaintings extraDepsCohs).1
         prevCohFrames q.succ (⇑ᵣ Hq) ε d l) := by
   funext θ
