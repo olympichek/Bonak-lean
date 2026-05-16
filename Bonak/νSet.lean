@@ -291,22 +291,42 @@ def mkExtraDeps {p k : Nat} {depsCohs : DepsCohs (A := A) p k}
       DepsRestrExtension.AddRestrDep
         (mkDepsRestr depsCohs') (mkExtraDeps extraDepsCohs')
 
-def mkRestrPainting :
-    {p k : Nat} -> {depsCohs : DepsCohs (A := A) p k} ->
+def mkRestrPaintingAux :
+    (q : Nat) -> {p k : Nat} -> {depsCohs : DepsCohs (A := A) p k} ->
       (extraDepsCohs : DepsCohsExtension (A := A) p k depsCohs) ->
-      mkRestrPaintingType (mkExtraDeps extraDepsCohs)
-  | _, _, _, DepsCohsExtension.TopCohDep _ =>
-      fun
-      | 0, _, ε, _, c => c.1 ε
-      | q + 1, Hq, _, _, _ => nomatch leR_O_contra (n := q) Hq
-  | _, _, _, DepsCohsExtension.AddCohDep depsCohs' extraDepsCohs' =>
-      fun
-      | 0, _, ε, _, c => c.1 ε
-      | q + 1, Hq, ε, d, c =>
-          (mkRestrLayer depsCohs'.restrPaintings depsCohs'.cohs
-              q (⇓ᵣ Hq) ε d c.1 ;
-            mkRestrPainting extraDepsCohs' q (⇓ᵣ Hq) ε
-              (d ; c.1) c.2)
+      (Hq : q ≤ᵣ k) -> (ε : A.arity) ->
+      (d : mkFrame (proj1DepsRestr (mkDepsRestr depsCohs))) ->
+      (mkPaintings (proj1DepsRestr (mkDepsRestr depsCohs))
+        (DepsRestrExtension.AddRestrDep
+          (mkDepsRestr depsCohs) (mkExtraDeps extraDepsCohs))).2 d ->
+      (mkDepsRestr depsCohs).paintings.2
+        ((mkDepsRestr depsCohs).restrFrames.2 q Hq ε d)
+  | 0, _, _, _, _, _, ε, _, c => c.1 ε
+  | q + 1, _, _, _, DepsCohsExtension.TopCohDep _, Hq, _, _, _ =>
+      nomatch leR_O_contra (n := q) Hq
+  | q + 1, _, _, _, DepsCohsExtension.AddCohDep depsCohs' extraDepsCohs',
+      Hq, ε, d, c =>
+      (mkRestrLayer depsCohs'.restrPaintings depsCohs'.cohs
+          q (⇓ᵣ Hq) ε d c.1 ;
+        mkRestrPaintingAux q extraDepsCohs' (⇓ᵣ Hq) ε
+          (d ; c.1) c.2)
+
+def mkRestrPainting {p k : Nat}
+    {depsCohs : DepsCohs (A := A) p k}
+    (extraDepsCohs : DepsCohsExtension (A := A) p k depsCohs) :
+    mkRestrPaintingType (mkExtraDeps extraDepsCohs) :=
+  fun q Hq ε d c =>
+    mkRestrPaintingAux q extraDepsCohs Hq ε d c
+
+theorem mkRestrPainting_q0 {p k : Nat}
+    {depsCohs : DepsCohs (A := A) p k}
+    (extraDepsCohs : DepsCohsExtension (A := A) p k depsCohs)
+    (ε : A.arity)
+    (d : mkFrame (proj1DepsRestr (mkDepsRestr depsCohs)))
+    (l : mkLayerOf (mkDepsRestr depsCohs) d)
+    (c : mkPainting (mkExtraDeps extraDepsCohs) (d ; l)) :
+    mkRestrPainting extraDepsCohs 0 leR_O ε d (l ; c) = l ε := by
+  rfl
 
 def mkRestrPaintingsPrefix {A : AritySig} :
     {p k : Nat} -> {depsCohs : DepsCohs (A := A) p k} ->
