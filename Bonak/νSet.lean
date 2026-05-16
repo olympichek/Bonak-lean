@@ -536,6 +536,49 @@ def mkExtraCohs {p k : Nat} {depsCohs2 : DepsCohs2 (A := A) p k}
       DepsCohsExtension.AddCohDep
         (mkDepsCohs depsCohs2') (mkExtraCohs extraDepsCohs2')
 
+theorem mkCohPainting {p k : Nat}
+    {depsCohs2 : DepsCohs2 (A := A) p k}
+    (extraDepsCohs2 :
+      DepsCohs2Extension (A := A) p k depsCohs2) :
+    mkCohPaintingType (mkExtraCohs extraDepsCohs2) := by
+  intro q Hq r Hr ε ω d c
+  cases c with
+  | mk l c =>
+      cases r with
+      | zero =>
+          rfl
+      | succ r =>
+          cases q with
+          | zero =>
+              exact nomatch leR_O_contra Hr
+          | succ q =>
+              cases extraDepsCohs2 with
+              | TopCoh2Dep _ =>
+                  exact nomatch leR_O_contra (n := q) Hq
+              | AddCoh2Dep depsCohs2' extraDepsCohs2' =>
+                  exact
+                    eq_existT_curried_dep
+                      (Q := fun x =>
+                        (mkPainting depsCohs2'.depsCohs.extraDeps x).Dom)
+                      (Hu := mkCohLayer
+                        depsCohs2'.extraDepsCohs depsCohs2'.cohPaintings
+                        q (Hq := ⇓ᵣ Hq) r (Hr := ⇓ᵣ Hr) ε ω d l)
+                      (Hv := mkCohPainting extraDepsCohs2'
+                        q (⇓ᵣ Hq) r (⇓ᵣ Hr) ε ω (d ; l) c)
+
+def mkCohPaintings {A : AritySig} :
+    {p k : Nat} -> {depsCohs2 : DepsCohs2 (A := A) p k} ->
+      (extraDepsCohs2 :
+        DepsCohs2Extension (A := A) p k depsCohs2) ->
+      mkCohPaintingTypes (mkExtraCohs extraDepsCohs2)
+  | 0, _, _, extraDepsCohs2 =>
+      (PUnit.unit ; mkCohPainting extraDepsCohs2)
+  | _ + 1, _, depsCohs2, extraDepsCohs2 =>
+      let extraDepsCohs2' :=
+        DepsCohs2Extension.AddCoh2Dep depsCohs2 extraDepsCohs2
+      (mkCohPaintings extraDepsCohs2' ;
+        mkCohPainting extraDepsCohs2)
+
 end Arity
 
 end νSet
