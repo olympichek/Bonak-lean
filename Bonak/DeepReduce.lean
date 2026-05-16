@@ -4,8 +4,7 @@ import Lean
 A small command for debugging computed types.
 
 `#deep_reduce t` normalizes `t` under full transparency and then recursively
-normalizes subterms. This is intentionally a display/debug command, not a proof
-automation primitive.
+normalizes subterms. This is a display-oriented debugging command.
 -/
 
 namespace Bonak

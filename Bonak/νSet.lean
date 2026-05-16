@@ -5,9 +5,9 @@ import Bonak.DeepReduce
 /-!
 Main Bonak construction.
 
-This file starts with Layer A of the port: frame lists, painting lists,
-restriction dependencies, and restriction painting types. Later coherence
-layers will build on these explicit records.
+This file ports the frame, painting, restriction, coherence, and final
+semisimplicial-set construction from the Rocq source, using explicit records in
+place of Rocq's class-based assembly.
 -/
 
 namespace Bonak
@@ -668,8 +668,8 @@ def νSetAt : (n : Nat) -> νSet (A := A) n
   | 0 => mkνSet0
   | n + 1 => mkνSet (νSetAt n)
 
--- Lean has no primitive coinductive records. We model the final coalgebra by
--- its finite approximations, indexed by how many more layers are exposed.
+-- The Rocq source uses `CoInductive νSetFrom`. This Lean port uses a finite
+-- approximation interface instead, indexed by how many more layers are exposed.
 def νSetFromApprox :
     Nat -> (n : Nat) -> (νSetAt (A := A) n).Prefix -> Type 1
   | 0, _, _ => PUnit.{2}
