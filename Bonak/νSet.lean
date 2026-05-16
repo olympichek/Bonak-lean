@@ -1,5 +1,6 @@
 import Bonak.RewLemmas
 import Bonak.LeProp
+import Bonak.DeepReduce
 
 /-!
 Main Bonak construction.
@@ -701,5 +702,12 @@ abbrev SemiSimplicial : Type 1 :=
 
 abbrev SemiCubical : Type 1 :=
   νSet.νSets (A := ArityBool)
+
+/- Some example. -/
+
+def SemiSimplicial4 : Type 1 :=
+  (νSet.νSetAt (A := ArityUnit) 4).Prefix
+
+#deep_reduce SemiSimplicial4
 
 end Bonak
