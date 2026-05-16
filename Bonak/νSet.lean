@@ -579,7 +579,127 @@ def mkCohPaintings {A : AritySig} :
       (mkCohPaintings extraDepsCohs2' ;
         mkCohPainting extraDepsCohs2)
 
+structure νSetData (p : Nat) where
+  frames : mkFrameTypes p 0
+  paintings : mkPaintingTypes p 0 frames
+  restrFrames : mkRestrFrameTypes (A := A) paintings
+  restrPaintings :
+    (E : mkFrame (toDepsRestr (A := A) restrFrames) -> HSet) ->
+      mkRestrPaintingTypes (toDepsRestr (A := A) restrFrames)
+        (DepsRestrExtension.TopRestrDep E)
+  cohFrames :
+    (E : mkFrame (toDepsRestr (A := A) restrFrames) -> HSet) ->
+      mkCohFrameTypes
+        (deps := toDepsRestr (A := A) restrFrames)
+        (extraDeps := DepsRestrExtension.TopRestrDep E)
+        (restrPaintings E)
+  cohPaintings :
+    (E : mkFrame (toDepsRestr (A := A) restrFrames) -> HSet) ->
+      let deps := toDepsRestr (A := A) restrFrames
+      let extraDeps := DepsRestrExtension.TopRestrDep E
+      let depsCohs :=
+        toDepsCohs (deps := deps) (extraDeps := extraDeps)
+          (restrPaintings := restrPaintings E) (cohFrames E)
+      (E' : mkFrame (mkDepsRestr depsCohs) -> HSet) ->
+        mkCohPaintingTypes
+          (DepsCohsExtension.TopCohDep (depsCohs := depsCohs) E')
+
+abbrev νSetData.depsRestr {p : Nat} (C : νSetData (A := A) p) :
+    DepsRestr (A := A) p 0 :=
+  toDepsRestr C.restrFrames
+
+abbrev νSetData.depsCohs {p : Nat} (C : νSetData (A := A) p)
+    (E : mkFrame C.depsRestr -> HSet) :
+    DepsCohs (A := A) p 0 :=
+  toDepsCohs (deps := C.depsRestr)
+    (extraDeps := DepsRestrExtension.TopRestrDep E)
+    (restrPaintings := C.restrPaintings E) (C.cohFrames E)
+
+abbrev νSetData.depsCohs2 {p : Nat} (C : νSetData (A := A) p)
+    (E : mkFrame C.depsRestr -> HSet)
+    (E' : mkFrame (mkDepsRestr (C.depsCohs E)) -> HSet) :
+    DepsCohs2 (A := A) p 0 :=
+  toDepsCohs2 (depsCohs := C.depsCohs E)
+    (extraDepsCohs :=
+      DepsCohsExtension.TopCohDep (depsCohs := C.depsCohs E) E')
+    (C.cohPaintings E E')
+
+def mkνSetData {p : Nat} (C : νSetData (A := A) p)
+    (E : mkFrame C.depsRestr -> HSet) : νSetData (A := A) p.succ :=
+  let deps := C.depsRestr
+  let extraDeps := DepsRestrExtension.TopRestrDep E
+  let depsCohs := C.depsCohs E
+  { frames := mkFrames deps
+    paintings := mkPaintings deps extraDeps
+    restrFrames := mkRestrFrames depsCohs
+    restrPaintings := fun E' =>
+      mkRestrPaintings
+        (DepsCohsExtension.TopCohDep (depsCohs := depsCohs) E')
+    cohFrames := fun E' =>
+      mkCohFrames (C.cohPaintings E E')
+    cohPaintings := fun E' E'' =>
+      mkCohPaintings
+        (DepsCohs2Extension.TopCoh2Dep
+          (depsCohs2 := C.depsCohs2 E E') E'') }
+
+structure νSet (p : Nat) where
+  Prefix : Type 1
+  data : Prefix -> νSetData (A := A) p
+
+def mkPrefix {p : Nat} (C : νSet (A := A) p) : Type 1 :=
+  { D : C.Prefix &T mkFrame (C.data D).depsRestr -> HSet }
+
+def mkνSet0 : νSet (A := A) 0 :=
+  { Prefix := PUnit.{2}
+    data := fun _ =>
+      { frames := PUnit.unit
+        paintings := PUnit.unit
+        restrFrames := PUnit.unit
+        restrPaintings := fun _ => PUnit.unit
+        cohFrames := fun _ => PUnit.unit
+        cohPaintings := fun _ _ => PUnit.unit } }
+
+def mkνSet {p : Nat} (C : νSet (A := A) p) : νSet (A := A) p.succ :=
+  { Prefix := mkPrefix C
+    data := fun D => mkνSetData (C.data D.1) D.2 }
+
+def νSetAt : (n : Nat) -> νSet (A := A) n
+  | 0 => mkνSet0
+  | n + 1 => mkνSet (νSetAt n)
+
+-- Lean has no primitive coinductive records. We model the final coalgebra by
+-- its finite approximations, indexed by how many more layers are exposed.
+def νSetFromApprox :
+    Nat -> (n : Nat) -> (νSetAt (A := A) n).Prefix -> Type 1
+  | 0, _, _ => PUnit.{2}
+  | m + 1, n, X =>
+      { this : mkFrame ((νSetAt (A := A) n).data X).depsRestr -> HSet &T
+        νSetFromApprox m n.succ (X ; this) }
+
+structure νSetFrom (n : Nat) (X : (νSetAt (A := A) n).Prefix) : Type 1 where
+  approx : (m : Nat) -> νSetFromApprox (A := A) m n X
+
+abbrev νSets : Type 1 :=
+  νSetFrom (A := A) 0 PUnit.unit
+
 end Arity
 
 end νSet
+
+def ArityUnit : AritySig :=
+  { arity := hunit }
+
+def ArityBool : AritySig :=
+  { arity := hbool }
+
+abbrev AugmentedSemiSimplicial : Type 1 :=
+  νSet.νSets (A := ArityUnit)
+
+abbrev SemiSimplicial : Type 1 :=
+  νSet.νSetFrom (A := ArityUnit) 1
+    (PUnit.unit ; fun _ => hunit)
+
+abbrev SemiCubical : Type 1 :=
+  νSet.νSets (A := ArityBool)
+
 end Bonak
