@@ -1,5 +1,4 @@
 import Bonak.SigT
-import Bonak.HSet
 import Bonak.LeProp
 import Bonak.RewLemmas
 import Bonak.νSet

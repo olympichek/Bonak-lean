@@ -1,4 +1,4 @@
-import Bonak.HSet
+import Bonak.SigT
 
 /-!
 Small transport lemmas used by the main construction.
@@ -10,16 +10,6 @@ proved only by equality elimination.
 namespace Bonak
 
 universe u v w t
-
-theorem rew_permute_ll_hset {A : Type u} (P Q : A -> HSet)
-    (x y : A) (H : forall z : A, P z = Q z) (H' : x = y)
-    (a : P x) :
-    transport (fun X : HSet => X.Dom) (H y)
-      (transport (fun z : A => (P z).Dom) H' a) =
-    transport (fun z : A => (Q z).Dom) H'
-      (transport (fun X : HSet => X.Dom) (H x) a) := by
-  cases H'
-  rfl
 
 theorem rew_swap {A : Sort u} (P : A -> Sort v) (a b : A)
     (H : a = b) (x : P a) (y : P b) :

@@ -1,84 +1,29 @@
 /-!
-Recursive `Prop`-valued order used in the Bonak construction.
+Level bounds for the Bonak construction.
 
-The Coq source uses `SProp` for this relation. Lean's `Prop` is proof
-irrelevant, so the port keeps the same recursive definition while replacing
-`SProp` with `Prop`.
+The Rocq source needs a custom recursive `SProp`-valued order (`LeSProp.v`)
+to make proofs of `n <= m` definitionally irrelevant. In Lean every `Prop`
+is definitionally proof irrelevant, so the standard library's `Nat.le`
+already plays that role; this file only provides the implicit-argument
+variants and the compact combinator notations used by the construction.
 -/
 
 namespace Bonak
 
-inductive SFalse : Prop
+theorem leR_refl {n : Nat} : n ≤ n := Nat.le_refl n
 
-inductive STrue : Prop where
-  | intro : STrue
+theorem leR_O {n : Nat} : 0 ≤ n := Nat.zero_le n
 
-def leR : Nat -> Nat -> Prop
-  | 0, _ => STrue
-  | _ + 1, 0 => SFalse
-  | n + 1, m + 1 => leR n m
+theorem leR_O_contra {n : Nat} : n + 1 ≤ 0 -> False := Nat.not_succ_le_zero n
 
-scoped infix:50 " ≤ᵣ " => leR
+scoped infix:45 " ↕ " => Nat.le_trans
 
-theorem leR_refl {n : Nat} : n ≤ᵣ n := by
-  induction n with
-  | zero => exact STrue.intro
-  | succ _ ih => exact ih
+scoped prefix:70 "↑ᵣ " => Nat.le_succ_of_le
 
-theorem leR_O_contra {n : Nat} : (n + 1) ≤ᵣ 0 -> SFalse := by
-  intro h
-  exact h
+scoped prefix:70 "↓ᵣ " => Nat.le_of_succ_le
 
-theorem leR_O {n : Nat} : 0 ≤ᵣ n :=
-  STrue.intro
+scoped prefix:70 "⇓ᵣ " => Nat.le_of_succ_le_succ
 
-theorem leR_trans {n m p : Nat} (Hnm : n ≤ᵣ m) (Hmp : m ≤ᵣ p) :
-    n ≤ᵣ p := by
-  induction m generalizing n p with
-  | zero =>
-      cases n with
-      | zero => exact STrue.intro
-      | succ _ => cases Hnm
-  | succ m ih =>
-      cases n with
-      | zero => exact STrue.intro
-      | succ n =>
-          cases p with
-          | zero => cases Hmp
-          | succ p => exact ih (n := n) (p := p) Hnm Hmp
-
-scoped infix:45 " ↕ " => leR_trans
-
-theorem leR_up {n m : Nat} (Hnm : n ≤ᵣ m) : n ≤ᵣ (m + 1) := by
-  induction n generalizing m with
-  | zero => exact STrue.intro
-  | succ _ ih =>
-      cases m with
-      | zero => cases Hnm
-      | succ _ => exact ih Hnm
-
-scoped prefix:70 "↑ᵣ " => leR_up
-
-theorem leR_down {n m : Nat} (Hnm : (n + 1) ≤ᵣ m) : n ≤ᵣ m := by
-  induction n generalizing m with
-  | zero => exact STrue.intro
-  | succ _ ih =>
-      cases m with
-      | zero => cases Hnm
-      | succ _ => exact ih Hnm
-
-scoped prefix:70 "↓ᵣ " => leR_down
-
-theorem leR_lower_both {n m : Nat} (Hnm : (n + 1) ≤ᵣ (m + 1)) :
-    n ≤ᵣ m :=
-  Hnm
-
-scoped prefix:70 "⇓ᵣ " => leR_lower_both
-
-theorem leR_raise_both {n m : Nat} (Hnm : n ≤ᵣ m) :
-    (n + 1) ≤ᵣ (m + 1) :=
-  Hnm
-
-scoped prefix:70 "⇑ᵣ " => leR_raise_both
+scoped prefix:70 "⇑ᵣ " => Nat.succ_le_succ
 
 end Bonak
