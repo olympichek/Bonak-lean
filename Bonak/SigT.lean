@@ -86,6 +86,15 @@ def projT2_eq {A : Sort u} {P : A -> Sort v} {u v : sigT P}
   cases p
   rfl
 
+theorem eq_sigT_fst {A : Sort u} {B : A -> Sort v} {s : sigT B} {a : A}
+    (e : projT1 s = a) : s = (a ; rew [B] e in projT2 s) := by
+  cases e
+  rfl
+
+theorem eq_sigT_fst_proj {A : Sort u} {B : A -> Sort v} {s : sigT B} {a : A}
+    (e : projT1 s = a) :
+    congrArg (fun x : sigT B => x.1) (eq_sigT_fst e) = e := rfl
+
 theorem eq_existT_curried_dep {A : Type u} {x y : A} {P : A -> Type v}
     {Q : sigT P -> Type w} {H : x = y}
     {u : P x} {v : Q (existT P x u)}

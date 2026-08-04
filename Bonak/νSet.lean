@@ -668,17 +668,79 @@ def νSetAt : (n : Nat) -> νSet (A := A) n
   | 0 => mkνSet0
   | n + 1 => mkνSet (νSetAt n)
 
--- The Rocq source uses `CoInductive νSetFrom`. This Lean port uses a finite
--- approximation interface instead, indexed by how many more layers are exposed.
-def νSetFromApprox :
-    Nat -> (n : Nat) -> (νSetAt (A := A) n).Prefix -> Type 1
-  | 0, _, _ => PUnit.{2}
-  | m + 1, n, X =>
-      { this : mkFrame ((νSetAt (A := A) n).data X).depsRestr -> HSet &T
-        νSetFromApprox m n.succ (X ; this) }
+/-! Closing the tower as an ω-limit. -/
 
-structure νSetFrom (n : Nat) (X : (νSetAt (A := A) n).Prefix) : Type 1 where
-  approx : (m : Nat) -> νSetFromApprox (A := A) m n X
+/-- The type of level-`p` extensions of a prefix, i.e. the type of the
+`this` component that a level-`p+1` prefix adds on top of a level-`p`
+prefix. -/
+def mkExtensionType {p : Nat} {C : νSet (A := A) p} (D : C.Prefix) :
+    Type 1 :=
+  mkFrame (C.data D).depsRestr -> HSet
+
+/-- Since `(νSetAt l.succ).Prefix` is definitionally a Σ-type over
+`(νSetAt l).Prefix`, truncating a prefix to the previous level is plain
+first projection; a coherent tower of prefixes above a given level-`n`
+prefix `X` is thus an ω-limit presented with `.1` as the (definitional)
+bonding maps, with no recursively defined truncation function. -/
+structure νSetFrom (n : Nat) (X : (νSetAt (A := A) n).Prefix) :
+    Type 1 where
+  approx : (l : Nat) -> n ≤ᵣ l -> (νSetAt (A := A) l).Prefix
+  approxO : approx n leR_refl = X
+  approxS : forall (l : Nat) (Hl : n ≤ᵣ l) (HSl : n ≤ᵣ l.succ),
+    (approx l.succ HSl).1 = approx l Hl
+
+/-- The two destructors of the coinductive presentation: `this` observes
+the level-`n` extension chosen by a tower over `X`... -/
+def νSetFrom.«this» {n : Nat} {X : (νSetAt (A := A) n).Prefix}
+    (ν : νSetFrom (A := A) n X) : mkExtensionType X :=
+  rew [mkExtensionType]
+    ν.approxS n leR_refl (↑ᵣ leR_refl) ⬝ ν.approxO in
+  (ν.approx n.succ (↑ᵣ leR_refl)).2
+
+/-- ...where the level-`n.succ` entry of the chain is exactly `X` paired
+with that extension... -/
+theorem νSetFrom.approxEta {n : Nat} {X : (νSetAt (A := A) n).Prefix}
+    (ν : νSetFrom (A := A) n X) :
+    ν.approx n.succ (↑ᵣ leR_refl) = (X ; ν.this) :=
+  eq_sigT_fst (ν.approxS n leR_refl (↑ᵣ leR_refl) ⬝ ν.approxO)
+
+/-- ...and `next` observes the tail: the same tower, one level up, over
+the extended prefix (proofs of `n ≤ᵣ l` being definitionally irrelevant,
+all coherences are inherited as such). -/
+def νSetFrom.next {n : Nat} {X : (νSetAt (A := A) n).Prefix}
+    (ν : νSetFrom (A := A) n X) :
+    νSetFrom (A := A) n.succ (X ; ν.this) where
+  approx l Hl := ν.approx l (↓ᵣ Hl)
+  approxO := ν.approxEta
+  approxS l Hl HSl := ν.approxS l (↓ᵣ Hl) (↓ᵣ HSl)
+
+/-- The general introduction rule of the ω-limit: a tower above level `n`
+is nothing but a globally coherent chain of prefixes, read from level `n`
+on. Both destructors act on it without touching the chain: when the chain
+is *definitionally* coherent (`HCh` pointwise `rfl`),
+`(towerOfChain Ch HCh n).this` is `(Ch n.succ).2` and
+`(towerOfChain Ch HCh n).next` is `towerOfChain Ch HCh n.succ`, by
+conversion. -/
+def towerOfChain (Ch : (l : Nat) -> (νSetAt (A := A) l).Prefix)
+    (HCh : forall l : Nat, (Ch l.succ).1 = Ch l) (n : Nat) :
+    νSetFrom (A := A) n (Ch n) where
+  approx l _ := Ch l
+  approxO := rfl
+  approxS l _ _ := HCh l
+
+/-- The anamorphism closing the tower from a step function: the analog,
+for the ground tower, of building an element by `cofix`. -/
+def mkApprox
+    (F : forall (n : Nat) (X : (νSetAt (A := A) n).Prefix),
+      mkExtensionType X) :
+    (l : Nat) -> (νSetAt (A := A) l).Prefix
+  | 0 => PUnit.unit
+  | l + 1 => (mkApprox F l ; F l (mkApprox F l))
+
+def ana
+    (F : forall (n : Nat) (X : (νSetAt (A := A) n).Prefix),
+      mkExtensionType X) : νSetFrom (A := A) 0 PUnit.unit :=
+  towerOfChain (mkApprox F) (fun _ => rfl) 0
 
 abbrev νSets : Type 1 :=
   νSetFrom (A := A) 0 PUnit.unit
